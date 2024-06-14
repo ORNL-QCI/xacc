@@ -29,8 +29,37 @@ endif()
 add_compile_flags_if_supported(-Wno-deprecated-copy)
 add_subdirectory(cppmicroservices)
 
+set(TEST_FILE "${CMAKE_SOURCE_DIR}/tpls/cppmicroservices/tools/jsonschemavalidator/CMakeLists.txt")
+set(INSERT_LINE 18)  # The line number to insert the string at (1-based index)
+set(INSERT_STRING "if(US_BUILD_TESTING)")
+
+if(EXISTS ${TEST_FILE})
+    message(STATUS "File exists: ${TEST_FILE}")
+
+    # Read all lines from the file into a list
+    file(READ ${TEST_FILE} FILE_CONTENTS)
+    string(FIND "${FILE_CONTENTS}" "${INSERT_STRING}" POSITION)
+
+    if(POSITION EQUAL -1)
+        string(REPLACE "\n" ";" FILE_LINES ${FILE_CONTENTS})
+
+        # Insert the new string at the specified line
+        list(INSERT FILE_LINES ${INSERT_LINE} "${INSERT_STRING}")
+
+        # Join the lines back into a single string with newlines
+        string(REPLACE ";" "\n" NEW_FILE_CONTENTS "${FILE_LINES}")
+
+        # Write the modified contents back to the file
+        file(WRITE ${TEST_FILE} "${NEW_FILE_CONTENTS}")
+        file(APPEND ${TEST_FILE} "endif()\n")
+    endif()
+    #message(STATUS "Finished modifying the file: ${MY_FILE}")
+else()
+    message(STATUS "File does not exist: ${MY_FILE}")
+endif()
+
 # Fix for bug #161
-install(FILES "${CMAKE_BINARY_DIR}/tpls/cppmicroservices/CMakeFiles/Export/share/cppmicroservices4/cmake/CppMicroServicesTargets-release.cmake" DESTINATION share/cppmicroservices4/cmake OPTIONAL)
+#install(FILES "${CMAKE_BINARY_DIR}/tpls/cppmicroservices/CMakeFiles/Export/share/cppmicroservices4/cmake/CppMicroServicesTargets-release.cmake" DESTINATION share/cppmicroservices4/cmake OPTIONAL)
 
 if (XACC_DEPS_EXTERNAL) 
   find_package(cpr) 
