@@ -34,3 +34,6 @@
 [submodule "tpls/eigen"]
 	path = tpls/eigen
 	url = https://gitlab.com/libeigen/eigen.git
+[submodule "tpls/armadillo"]
+	path = tpls/armadillo
+	url = https://gitlab.com/conradsnicta/armadillo-code.git

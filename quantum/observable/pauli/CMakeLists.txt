@@ -25,7 +25,7 @@ usFunctionGenerateBundleInit(TARGET ${LIBRARY_NAME} OUT SRC)
 add_library(${LIBRARY_NAME} SHARED ${SRC})
 target_include_directories(${LIBRARY_NAME}
                             PUBLIC
-                            . ${CMAKE_SOURCE_DIR}/tpls/armadillo
+                            . ${CMAKE_SOURCE_DIR}/tpls/armadillo/include
                             ${CMAKE_SOURCE_DIR}/tpls/antlr/runtime/src
                             ${CMAKE_CURRENT_SOURCE_DIR}
                             ${CMAKE_CURRENT_SOURCE_DIR}/generated
