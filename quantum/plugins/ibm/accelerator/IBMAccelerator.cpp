@@ -349,6 +349,22 @@ void IBMAccelerator::cancel() {
   }
 }
 
+void IBMAccelerator::retrieve(const std::string jobId, std::shared_ptr<xacc::AcceleratorBuffer> buffer) {
+
+  const std::string path("/runtime/jobs/" + jobId + "/results");
+  auto resultsJson = get(IBM_API_URL, path, headers);
+  auto hexs = json::parse(resultsJson)["results"][0]["data"]["q_c"]["samples"];
+
+  std::vector<int> samples;
+  for (const auto& sample_hex : hexs) {
+            int sample_int = std::stoi(sample_hex.get<std::string>(), nullptr, 16);
+            // Convert the integer to a binary string
+            samples.push_back(sample_int);
+        }
+        buffer->setSamples(samples);
+  return;
+}
+
 std::vector<std::pair<int, int>> IBMAccelerator::getConnectivity() {
 
   if (!xacc::container::contains(availableBackends, backend)) {

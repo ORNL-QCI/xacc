@@ -15,15 +15,11 @@
 #define QUANTUM_GATE_ACCELERATORS_IBMACCELERATOR_HPP_
 
 #include "InstructionIterator.hpp"
-//#include "Properties.hpp"
 #include "Accelerator.hpp"
 #include <bitset>
 #include <type_traits>
-//#include "Backends.hpp"
-//#include "Properties.hpp"
 #include "IRTransformation.hpp"
 #include "Json.hpp"
-//#include "QObjGenerator.hpp"
 
 using namespace xacc;
 using json = nlohmann::json;
@@ -73,6 +69,7 @@ std::string hex_string_to_binary_string(std::string hex);
 class IBMAccelerator : public Accelerator {
 public:
   void cancel() override;
+  void retrieve(const std::string jobId, std::shared_ptr<xacc::AcceleratorBuffer> buffer) override;
 
   std::map<std::string, std::map<int, int>> name2QubitMap;
 
