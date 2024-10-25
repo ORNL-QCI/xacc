@@ -322,13 +322,14 @@ auto transpiled = json::parse(get(IBM_TRANSPILER_URL, "/transpile/" + task_id, h
     };
 
   for (const auto & c : transpiled["result"]) {
-    std::cout << c["qasm"] << "\n";
     body["params"]["pubs"].push_back(
       {c["qasm"], json::array(), shots}
     );
   }
 
-auto reserve_response = post(IBM_API_URL, "/runtime/jobs", body.dump(), headers);
+  auto reserve_response = post(IBM_API_URL, "/runtime/jobs", body.dump(), headers);
+
+  xacc::info("Current job ID: " + json::parse(reserve_response)["id"].get<std::string>());
 
 }
 
