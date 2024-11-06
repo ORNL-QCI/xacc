@@ -15,6 +15,7 @@ add_subdirectory(algorithms)
 add_subdirectory(xasm)
 add_subdirectory(qpp)
 add_subdirectory(staq)
+add_subdirectory(cutensornet)
 
 if(XACC_REMOTE_ACCELERATORS)
     add_subdirectory(ionq)

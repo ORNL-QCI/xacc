@@ -49,6 +49,8 @@ option(XACC_BUILD_ATOS "Build the Atos QLM plugin" OFF)
 option(XACC_BUILD_QFACTOR "Build the QFactor plugin" OFF)
 option(XACC_BUILD_QSEARCH "Build the QSearch plugin" OFF)
 option(XACC_BUILD_QRACK "Build the Qrack plugin" OFF)
+option(XACC_BUILD_MPS "Build the cuTensorNet plugin" OFF)
+
 
 if(XACC_BUILD_ANNEALING)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANNEALING_ENABLED")
@@ -175,6 +177,17 @@ if(XACC_ENABLE_MPI)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMPI_ENABLED")
   else()
     message(STATUS "${BoldYellow}MPI is enabled but no MPI installation could be found.${ColorReset}")
+  endif()
+endif()
+
+if(XACC_BUILD_MPS)
+  enable_language(CUDA)
+  find_package(CUDA)
+
+  if(CUDA_FOUND)
+   message(STATUS "${Green}Found CUDA.${ColorReset}")
+  else()
+    message(STATUS "${BoldYellow}CUDA not found.${ColorReset}")
   endif()
 endif()
 
