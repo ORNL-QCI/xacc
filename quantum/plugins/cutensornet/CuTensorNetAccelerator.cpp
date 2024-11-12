@@ -12,11 +12,10 @@
  *******************************************************************************/
 #include "CuTensorNetAccelerator.hpp"
 #include "xacc_plugin.hpp"
+#include "IRUtils.hpp"
 
 namespace xacc {
 namespace quantum {
-
-int64_t CuTensorNetVisitor::id = 0;
 
 void CuTensorNetAccelerator::initialize(const HeterogeneousMap &params) {
 
@@ -28,6 +27,12 @@ void CuTensorNetAccelerator::initialize(const HeterogeneousMap &params) {
 
   if (params.keyExists<int>("bond-dimension")) {
     bondDimension = params.get<int>("bond-dimension");
+  } else {
+    xacc::warning("Using bond dimension default of 2.");
+  }
+
+  if (params.pointerLikeExists<PauliOperator>("observable")) {
+    observable = params.getPointerLike<PauliOperator>("observable");
   }
 
   return;
@@ -39,9 +44,7 @@ void CuTensorNetAccelerator::execute(
 
   auto numQubits = buffer->size();
   // Determine the MPS representation and allocate buffers for the MPS tensors
-  const int64_t maxExtent =
-      bondDimension; // GHZ state can be exactly represented with max bond
-                     // dimension of 2
+  const int64_t maxExtent = bondDimension;
   std::vector<std::vector<int64_t>> extents;
   std::vector<int64_t *> extentsPtr(numQubits);
   std::vector<void *> d_mpsTensors(numQubits, nullptr);
@@ -65,13 +68,9 @@ void CuTensorNetAccelerator::execute(
   // Query the free memory on Device
   std::size_t freeSize{0}, totalSize{0};
   HANDLE_CUDA_ERROR(cudaMemGetInfo(&freeSize, &totalSize));
-  const std::size_t scratchSize =
-      (freeSize - (freeSize % 4096)) /
-      2; // use half of available memory with alignment
+  const std::size_t scratchSize = (freeSize - (freeSize % 4096)) / 2;
   void *d_scratch{nullptr};
   HANDLE_CUDA_ERROR(cudaMalloc(&d_scratch, scratchSize));
-  std::cout << "Allocated " << scratchSize
-            << " bytes of scratch memory on GPU\n";
 
   // Create the initial quantum state
   cutensornetState_t quantumState;
@@ -84,16 +83,11 @@ void CuTensorNetAccelerator::execute(
   InstructionIterator it(program);
   while (it.hasNext()) {
     auto nextInst = it.next();
-    if (nextInst->isEnabled()) {
-      if (nextInst->name() != "Measure") {
-        nextInst->accept(&visitor);
-      } else {
-        // Just collect the indices of measured qubit
-        // measureBitIdxs.emplace_back(nextInst->bits()[0]);
-      }
+    if (nextInst->isEnabled() && nextInst->name() != "Measure") {
+      nextInst->accept(&visitor);
     }
   }
-  std::cout << "Applied quantum gates\n";
+
   // Specify the final target MPS representation (use default fortran strides)
   HANDLE_CUTN_ERROR(cutensornetStateFinalizeMPS(
       cutnHandle, quantumState, CUTENSORNET_BOUNDARY_CONDITION_OPEN,
@@ -104,43 +98,35 @@ void CuTensorNetAccelerator::execute(
   HANDLE_CUTN_ERROR(cutensornetStateConfigure(
       cutnHandle, quantumState, CUTENSORNET_STATE_CONFIG_MPS_SVD_ALGO, &algo,
       sizeof(algo)));
-  std::cout << "Configured the MPS computation\n";
 
   // Prepare the MPS computation and attach workspace
   cutensornetWorkspaceDescriptor_t workDesc;
   HANDLE_CUTN_ERROR(
       cutensornetCreateWorkspaceDescriptor(cutnHandle, &workDesc));
-  std::cout << "Created the workspace descriptor\n";
-  // exit(0);
+
   HANDLE_CUTN_ERROR(cutensornetStatePrepare(cutnHandle, quantumState,
                                             scratchSize, workDesc, 0x0));
-  std::cout << "Prepared the computation of the quantum circuit state\n";
+
   double flops{0.0};
   HANDLE_CUTN_ERROR(cutensornetStateGetInfo(cutnHandle, quantumState,
                                             CUTENSORNET_STATE_INFO_FLOPS,
                                             &flops, sizeof(flops)));
-  if (flops > 0.0) {
-    std::cout << "Total flop count = " << (flops / 1e9) << " GFlop\n";
-  } else if (flops < 0.0) {
-    std::cout << "ERROR: Negative Flop count!\n";
-    std::abort();
+  if (flops < 0.0) {
+    xacc::error("Negative Flop count!");
   }
 
   int64_t worksize{0};
   HANDLE_CUTN_ERROR(cutensornetWorkspaceGetMemorySize(
       cutnHandle, workDesc, CUTENSORNET_WORKSIZE_PREF_RECOMMENDED,
       CUTENSORNET_MEMSPACE_DEVICE, CUTENSORNET_WORKSPACE_SCRATCH, &worksize));
-  std::cout << "Scratch GPU workspace size (bytes) for MPS computation = "
-            << worksize << std::endl;
+
   if (worksize <= scratchSize) {
     HANDLE_CUTN_ERROR(cutensornetWorkspaceSetMemory(
         cutnHandle, workDesc, CUTENSORNET_MEMSPACE_DEVICE,
         CUTENSORNET_WORKSPACE_SCRATCH, d_scratch, worksize));
   } else {
-    std::cout << "ERROR: Insufficient workspace size on Device!\n";
-    std::abort();
+    xacc::error("Insufficient workspace size on Device!");
   }
-  std::cout << "Set the workspace buffer for MPS computation\n";
 
   // Execute MPS computation
   HANDLE_CUTN_ERROR(cutensornetStateCompute(
@@ -151,59 +137,55 @@ void CuTensorNetAccelerator::execute(
   cutensornetNetworkOperator_t hamiltonian;
   HANDLE_CUTN_ERROR(cutensornetCreateNetworkOperator(
       cutnHandle, numQubits, qubitDims.data(), CUDA_C_64F, &hamiltonian));
-  // Append component (0.5 * Z1 * Z2) to the tensor network operator
-  {
-    const int32_t numModes[] = {1, 1}; // Z1 acts on 1 mode, Z2 acts on 1 mode
-    const int32_t modesX0[] = {0};     // state modes Z1 acts on
-    const int32_t modesX1[] = {1};     // state modes Z2 acts on
-    const int32_t *stateModes[] = {modesX0,
-                                   modesX1}; // state modes (Z1 * Z2) acts on
-    const void *gateData[] = {visitor.getX(),
-                              visitor.getX()}; // GPU pointers to gate data
-    HANDLE_CUTN_ERROR(cutensornetNetworkOperatorAppendProduct(
-        cutnHandle, hamiltonian, cuDoubleComplex{1.0, 0.0}, 2, numModes,
-        stateModes, NULL, gateData, &CuTensorNetVisitor::id));
+
+  int64_t id = visitor.getTensorId();
+
+  if (observable) {
+
+    std::map<std::string, void *> devicePaulis;
+    devicePaulis.insert({"X", visitor.getX()});
+    devicePaulis.insert({"Y", visitor.getY()});
+    devicePaulis.insert({"Z", visitor.getZ()});
+
+    for (auto it = observable->begin(); it != observable->end(); ++it) {
+
+      auto paulis = it->second.ops();
+
+      std::vector<int32_t> numModes(paulis.size(), 1);
+      std::vector<std::vector<int32_t>> stateModesVecs(paulis.size());
+      std::vector<const int32_t *> stateModes(paulis.size());
+      std::vector<const void *> gateData(paulis.size());
+
+      int siteCounter = 0;
+      for (auto &site : paulis) {
+        stateModesVecs[siteCounter] = {static_cast<int32_t>(site.first)};
+        stateModes[siteCounter] = stateModesVecs[siteCounter].data();
+        gateData[siteCounter] = devicePaulis[site.second];
+        siteCounter++;
+      }
+
+      HANDLE_CUTN_ERROR(cutensornetNetworkOperatorAppendProduct(
+          cutnHandle, hamiltonian, cuDoubleComplex{1.0, 0.0}, paulis.size(),
+          numModes.data(), stateModes.data(), NULL, gateData.data(), &id));
+    }
+
+  } else {
+    xacc::error("Does not have observable to calculate expectation value.")
   }
-  /*
-  // Append component (0.25 * Y3) to the tensor network operator
-  {
-    const int32_t numModes[] = {1}; // Y3 acts on 1 mode
-    const int32_t modesY3[] = {3}; // state modes Y3 acts on
-    const int32_t * stateModes[] = {modesY3}; // state modes (Y3) acts on
-    const void * gateData[] = {visitor.getY()}; // GPU pointers to gate data
-    HANDLE_CUTN_ERROR(cutensornetNetworkOperatorAppendProduct(cutnHandle,
-  hamiltonian, cuDoubleComplex{0.25,0.0}, 1, numModes, stateModes, NULL,
-  gateData, &CuTensorNetVisitor::id));
-  }
-  // Append component (0.13 * Y0 X2 Z3) to the tensor network operator
-  {
-    const int32_t numModes[] = {1, 1, 1}; // Y0 acts on 1 mode, X2 acts on 1
-  mode, Z3 acts on 1 mode const int32_t modesY0[] = {0}; // state modes Y0 acts
-  on const int32_t modesX2[] = {2}; // state modes X2 acts on const int32_t
-  modesZ3[] = {3}; // state modes Z3 acts on const int32_t * stateModes[] =
-  {modesY0, modesX2, modesZ3}; // state modes (Y0 * X2 * Z3) acts on const void
-  * gateData[] = {visitor.getY(), visitor.getX(), visitor.getZ()}; // GPU
-  pointers to gate data
-    HANDLE_CUTN_ERROR(cutensornetNetworkOperatorAppendProduct(cutnHandle,
-  hamiltonian, cuDoubleComplex{0.13,0.0}, 3, numModes, stateModes, NULL,
-  gateData, &CuTensorNetVisitor::id));
-  }
-  */
-  std::cout << "Constructed a tensor network operator: (0.5 * Z1 * Z2) + (0.25 "
-               "* Y3) + (0.13 * Y0 * X2 * Z3)"
-            << std::endl;
+
+  xacc::info("Constructed a tensor network operator corresponding to the "
+             "provided operator");
 
   // Specify the quantum circuit expectation value
   cutensornetStateExpectation_t expectation;
   HANDLE_CUTN_ERROR(cutensornetCreateExpectation(cutnHandle, quantumState,
                                                  hamiltonian, &expectation));
-  std::cout << "Created the specified quantum circuit expectation value\n";
 
   // Configure the computation of the specified quantum circuit expectation
   // value
-  const int32_t numHyperSamples =
-      8; // desired number of hyper samples used in the tensor network
-         // contraction path finder
+  // desired number of hyper samples used in the tensor network
+  // contraction path finder
+  const int32_t numHyperSamples = 8;
   HANDLE_CUTN_ERROR(cutensornetExpectationConfigure(
       cutnHandle, expectation, CUTENSORNET_EXPECTATION_CONFIG_NUM_HYPER_SAMPLES,
       &numHyperSamples, sizeof(numHyperSamples)));
@@ -211,65 +193,60 @@ void CuTensorNetAccelerator::execute(
   // Prepare the specified quantum circuit expectation value for computation
   HANDLE_CUTN_ERROR(cutensornetExpectationPrepare(cutnHandle, expectation,
                                                   scratchSize, workDesc, 0x0));
-  std::cout << "Prepared the specified quantum circuit expectation value\n";
   flops = 0.0;
   HANDLE_CUTN_ERROR(cutensornetExpectationGetInfo(
       cutnHandle, expectation, CUTENSORNET_EXPECTATION_INFO_FLOPS, &flops,
       sizeof(flops)));
-  std::cout << "Total flop count = " << (flops / 1e9) << " GFlop\n";
+
   if (flops <= 0.0) {
-    std::cout << "ERROR: Invalid Flop count!\n";
-    std::abort();
+    xacc::error("Invalid Flop count!");
   }
 
   // Attach the workspace buffer
   HANDLE_CUTN_ERROR(cutensornetWorkspaceGetMemorySize(
       cutnHandle, workDesc, CUTENSORNET_WORKSIZE_PREF_RECOMMENDED,
       CUTENSORNET_MEMSPACE_DEVICE, CUTENSORNET_WORKSPACE_SCRATCH, &worksize));
-  std::cout << "Required scratch GPU workspace size (bytes) = " << worksize
-            << std::endl;
+  xacc::info("Required scratch GPU workspace size (bytes) = " +
+             std::to_string(worksize));
+
   if (worksize <= scratchSize) {
     HANDLE_CUTN_ERROR(cutensornetWorkspaceSetMemory(
         cutnHandle, workDesc, CUTENSORNET_MEMSPACE_DEVICE,
         CUTENSORNET_WORKSPACE_SCRATCH, d_scratch, worksize));
   } else {
-    std::cout << "ERROR: Insufficient workspace size on Device!\n";
-    std::abort();
+    xacc::error("Insufficient workspace size on Device!");
   }
-  std::cout << "Set the workspace buffer\n";
 
   // Compute the specified quantum circuit expectation value
   std::complex<double> expectVal{0.0, 0.0}, stateNorm2{0.0, 0.0};
   HANDLE_CUTN_ERROR(cutensornetExpectationCompute(
       cutnHandle, expectation, workDesc, static_cast<void *>(&expectVal),
       static_cast<void *>(&stateNorm2), 0x0));
-  std::cout << "Computed the specified quantum circuit expectation value\n";
+  xacc::info("Computed the specified quantum circuit expectation value");
   expectVal /= stateNorm2;
-  std::cout << "Expectation value = (" << expectVal.real() << ", "
-            << expectVal.imag() << ")\n";
-  std::cout << "Squared 2-norm of the state = (" << stateNorm2.real() << ", "
-            << stateNorm2.imag() << ")\n";
+  xacc::info("Expectation value = (" + std::to_string(expectVal.real()) + ", " +
+             std::to_string(expectVal.imag()) + ")");
+  xacc::info("Squared 2-norm of the state = (" +
+             std::to_string(stateNorm2.real()) + ", " +
+             std::to_string(stateNorm2.imag()) + ")");
   buffer->addExtraInfo("exp-val-z", expectVal.real());
 
   // Destroy the workspace descriptor
   HANDLE_CUTN_ERROR(cutensornetDestroyWorkspaceDescriptor(workDesc));
-  std::cout << "Destroyed the workspace descriptor\n";
 
   // Destroy the quantum circuit expectation value
   HANDLE_CUTN_ERROR(cutensornetDestroyExpectation(expectation));
-  std::cout << "Destroyed the quantum circuit state expectation value\n";
 
   // Destroy the tensor network operator
   HANDLE_CUTN_ERROR(cutensornetDestroyNetworkOperator(hamiltonian));
-  std::cout << "Destroyed the tensor network operator\n";
 
   // Destroy the quantum circuit state
   HANDLE_CUTN_ERROR(cutensornetDestroyState(quantumState));
-  std::cout << "Destroyed the quantum circuit state\n";
 
   for (int32_t i = 0; i < numQubits; i++) {
     HANDLE_CUDA_ERROR(cudaFree(d_mpsTensors[i]));
   }
+
   HANDLE_CUDA_ERROR(cudaFree(d_scratch));
   std::cout << "Freed memory on GPU\n";
 
@@ -279,7 +256,45 @@ void CuTensorNetAccelerator::execute(
 void CuTensorNetAccelerator::execute(
     std::shared_ptr<AcceleratorBuffer> buffer,
     const std::vector<std::shared_ptr<CompositeInstruction>>
-        compositeInstruction) {
+        compositeInstructions) {
+
+  auto kernelDecomposed =
+      ObservedAnsatz::fromObservedComposites(compositeInstructions);
+
+  // Basis-change + measures
+  auto obsCircuits = kernelDecomposed.getObservedSubCircuits();
+
+  std::map<std::string, std::string> gates{
+      {"Measure", "Z"}, {"H", "X"}, {"Rx", "Y"}};
+
+  for (auto &c : obsCircuits) {
+
+    std::string bufferName;
+    std::map<int, std::string> ops;
+    InstructionIterator it(c);
+    while (it.hasNext()) {
+      auto nextInst = it.next();
+      if (!dynamic_cast<xacc::quantum::Gate *>(nextInst.get())) {
+        bufferName = nextInst->name();
+        continue;
+      }
+      int bit = nextInst->bits()[0];
+      auto keyPos = ops.find(bit);
+
+      if (keyPos != ops.end()) {
+        if (nextInst->name() != "Measure")
+          ops.insert({bit, gates[nextInst->name()]});
+      } else {
+        ops.insert({bit, gates[nextInst->name()]});
+      }
+    }
+
+    observable = new PauliOperator(ops);
+    auto tmpBuffer = qalloc(buffer->size());
+    execute(tmpBuffer, kernelDecomposed.getBase());
+    tmpBuffer->setName(c->name());
+    buffer->appendChild(bufferName, tmpBuffer);
+  }
 
   return;
 }

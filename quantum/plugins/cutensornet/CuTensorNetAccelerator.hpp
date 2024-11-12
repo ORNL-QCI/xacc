@@ -13,6 +13,7 @@
 #pragma once
 #include "xacc.hpp"
 #include "CuTensorNetVisitor.hpp"
+#include "PauliOperator.hpp"
 
 #include <cuda_runtime.h>
 #include <cutensornet.h>
@@ -24,30 +25,45 @@ class CuTensorNetAccelerator : public Accelerator {
 public:
   // Identifiable interface impls
   virtual const std::string name() const override { return "cutensornet"; }
-  virtual const std::string description() const override { return "XACC Simulation Accelerator based on cutensor library."; }
+  virtual const std::string description() const override {
+    return "XACC Simulation Accelerator based on cutensor library.";
+  }
 
   // Accelerator interface impls
-  virtual void initialize(const HeterogeneousMap& params = {}) override;
-  virtual void updateConfiguration(const HeterogeneousMap& config) override { return; };
-  virtual const std::vector<std::string> configurationKeys() override { return {}; }
+  virtual void initialize(const HeterogeneousMap &params = {}) override;
+  virtual void updateConfiguration(const HeterogeneousMap &config) override {
+    return;
+  };
+  virtual const std::vector<std::string> configurationKeys() override {
+    return {};
+  }
   virtual HeterogeneousMap getProperties() override { return {}; }
-  virtual BitOrder getBitOrder() override {return BitOrder::LSB;}
-  virtual void execute(std::shared_ptr<AcceleratorBuffer> buffer, const std::shared_ptr<CompositeInstruction> compositeInstruction) override;
-  virtual void execute(std::shared_ptr<AcceleratorBuffer> buffer, const std::vector<std::shared_ptr<CompositeInstruction>> compositeInstructions) override;
-  virtual void apply(std::shared_ptr<AcceleratorBuffer> buffer, std::shared_ptr<Instruction> inst) override { return ;};
+  virtual BitOrder getBitOrder() override { return BitOrder::LSB; }
+  virtual void execute(std::shared_ptr<AcceleratorBuffer> buffer,
+                       const std::shared_ptr<CompositeInstruction>
+                           compositeInstruction) override;
+  virtual void execute(std::shared_ptr<AcceleratorBuffer> buffer,
+                       const std::vector<std::shared_ptr<CompositeInstruction>>
+                           compositeInstructions) override;
+  virtual void apply(std::shared_ptr<AcceleratorBuffer> buffer,
+                     std::shared_ptr<Instruction> inst) override {
+    return;
+  };
   // ExecutionInfo implementation:
-  virtual xacc::HeterogeneousMap getExecutionInfo() const override { return {}; }
+  virtual xacc::HeterogeneousMap getExecutionInfo() const override {
+    return {};
+  }
 
   ~CuTensorNetAccelerator() {
     HANDLE_CUTN_ERROR(cutensornetDestroy(cutnHandle));
   }
 
 private:
-
-  //CuTensorNetVisitor visitor;
   cutensornetHandle_t cutnHandle;
-  int64_t bondDimension;
+  int64_t bondDimension = 2;
+  PauliOperator* observable;
+
 };
 
-}
-}
+} // namespace quantum
+} // namespace xacc

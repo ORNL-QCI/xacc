@@ -12,4 +12,4 @@
 # *******************************************************************************/
 
 add_xacc_test(CuTensorNetAccelerator)
-target_link_libraries(CuTensorNetAcceleratorTester xacc)
+target_link_libraries(CuTensorNetAcceleratorTester xacc xacc-pauli)

@@ -12,10 +12,15 @@
  *******************************************************************************/
 #include <gtest/gtest.h>
 #include "xacc.hpp"
+#include "PauliOperator.hpp"
 
 TEST(CuTensorNetAcceleratorTester, testDeuteron)
 {
-    auto accelerator = xacc::getAccelerator("cutensornet", {{"bond-dimension", 2}});
+xacc::set_verbose(true);
+    std::shared_ptr<xacc::quantum::PauliOperator> observable = std::make_shared<
+      xacc::quantum::
+          PauliOperator>("X0 X1 + Z0");
+    auto accelerator = xacc::getAccelerator("cutensornet", {{"bond-dimension", 2}, {"observable", observable}});
     //auto xasmCompiler = xacc::getCompiler("xasm");
     /*
     auto ir = xasmCompiler->compile(R"(__qpu__ void ansatz(qbit q, double t) {
@@ -60,7 +65,7 @@ TEST(CuTensorNetAcceleratorTester, testDeuteron)
   auto program = ir->getComposite("ansatz");
 
   int c = 0;
-  auto angles = xacc::linspace(-xacc::constants::pi, xacc::constants::pi, 20);
+  auto angles = xacc::linspace(-xacc::constants::pi, xacc::constants::pi, 21);
   for (auto &a : angles) {
     auto buffer = xacc::qalloc(2);
     auto evaled = program->operator()({a});
