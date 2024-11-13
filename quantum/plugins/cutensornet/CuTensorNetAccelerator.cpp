@@ -170,7 +170,7 @@ void CuTensorNetAccelerator::execute(
     }
 
   } else {
-    xacc::error("Does not have observable to calculate expectation value.")
+    xacc::error("Missing observable to calculate expectation value of.");
   }
 
   xacc::info("Constructed a tensor network operator corresponding to the "
@@ -248,7 +248,7 @@ void CuTensorNetAccelerator::execute(
   }
 
   HANDLE_CUDA_ERROR(cudaFree(d_scratch));
-  std::cout << "Freed memory on GPU\n";
+  xacc::info("Freed memory on GPU");
 
   return;
 }
@@ -261,13 +261,22 @@ void CuTensorNetAccelerator::execute(
   auto kernelDecomposed =
       ObservedAnsatz::fromObservedComposites(compositeInstructions);
 
-  // Basis-change + measures
+  auto baseCircuit = kernelDecomposed.getBase();
   auto obsCircuits = kernelDecomposed.getObservedSubCircuits();
 
-  std::map<std::string, std::string> gates{
+  execute(buffer, baseCircuit, obsCircuits);
+  return;
+}
+
+void CuTensorNetAccelerator::execute(
+    std::shared_ptr<AcceleratorBuffer> buffer,
+    const std::shared_ptr<CompositeInstruction> baseCircuit,
+    const std::vector<std::shared_ptr<CompositeInstruction>> basisRotations) {
+
+  std::map<std::string, std::string> rotationGates{
       {"Measure", "Z"}, {"H", "X"}, {"Rx", "Y"}};
 
-  for (auto &c : obsCircuits) {
+  for (auto &c : basisRotations) {
 
     std::string bufferName;
     std::map<int, std::string> ops;
@@ -283,15 +292,15 @@ void CuTensorNetAccelerator::execute(
 
       if (keyPos != ops.end()) {
         if (nextInst->name() != "Measure")
-          ops.insert({bit, gates[nextInst->name()]});
+          ops.insert({bit, rotationGates[nextInst->name()]});
       } else {
-        ops.insert({bit, gates[nextInst->name()]});
+        ops.insert({bit, rotationGates[nextInst->name()]});
       }
     }
 
     observable = new PauliOperator(ops);
     auto tmpBuffer = qalloc(buffer->size());
-    execute(tmpBuffer, kernelDecomposed.getBase());
+    execute(tmpBuffer, baseCircuit);
     tmpBuffer->setName(c->name());
     buffer->appendChild(bufferName, tmpBuffer);
   }

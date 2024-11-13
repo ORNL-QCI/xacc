@@ -45,6 +45,10 @@ public:
   virtual void execute(std::shared_ptr<AcceleratorBuffer> buffer,
                        const std::vector<std::shared_ptr<CompositeInstruction>>
                            compositeInstructions) override;
+  virtual void execute(std::shared_ptr<AcceleratorBuffer> buffer,
+                       const std::shared_ptr<CompositeInstruction> baseCircuit,
+                       const std::vector<std::shared_ptr<CompositeInstruction>>
+                           basisRotations) override;
   virtual void apply(std::shared_ptr<AcceleratorBuffer> buffer,
                      std::shared_ptr<Instruction> inst) override {
     return;
@@ -61,8 +65,7 @@ public:
 private:
   cutensornetHandle_t cutnHandle;
   int64_t bondDimension = 2;
-  PauliOperator* observable;
-
+  PauliOperator *observable;
 };
 
 } // namespace quantum
