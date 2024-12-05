@@ -108,6 +108,7 @@ public:
   }
 
   virtual void cancel(){};
+  virtual void retrieve(const std::string jobId, std::shared_ptr<xacc::AcceleratorBuffer> buffer){};
 
   virtual std::vector<std::pair<int, int>> getConnectivity() {
     return std::vector<std::pair<int, int>>{};
