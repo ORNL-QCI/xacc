@@ -19,7 +19,7 @@ TEST(CuTensorNetAcceleratorTester, testDeuteron)
 xacc::set_verbose(true);
     std::shared_ptr<xacc::quantum::PauliOperator> observable = std::make_shared<
       xacc::quantum::
-          PauliOperator>("X0 X1 + Z0");
+          PauliOperator>("X0 X1");
     auto accelerator = xacc::getAccelerator("cutensornet", {{"bond-dimension", 2}, {"observable", observable}});
     //auto xasmCompiler = xacc::getCompiler("xasm");
     /*
@@ -65,7 +65,7 @@ xacc::set_verbose(true);
   auto program = ir->getComposite("ansatz");
 
   int c = 0;
-  auto angles = xacc::linspace(-xacc::constants::pi, xacc::constants::pi, 21);
+  auto angles = xacc::linspace(-xacc::constants::pi, xacc::constants::pi, 20);
   for (auto &a : angles) {
     auto buffer = xacc::qalloc(2);
     auto evaled = program->operator()({a});

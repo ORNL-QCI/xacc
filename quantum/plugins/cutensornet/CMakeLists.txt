@@ -5,39 +5,33 @@ file(GLOB SRC *.cpp)
 usfunctiongetresourcesource(TARGET ${LIBRARY_NAME} OUT SRC)
 usfunctiongeneratebundleinit(TARGET ${LIBRARY_NAME} OUT SRC)
 
-set(CMAKE_CUDA_ARCHITECTURES 75)
-
 add_library(${LIBRARY_NAME} SHARED ${SRC})
+if(CMAKE_MINOR_VERSION GREATER_EQUAL 24)
+  set_property(TARGET ${LIBRARY_NAME} PROPERTY CUDA_ARCHITECTURES native)
+else()
+  if(CUDA_ARCH STREQUAL "")
+    message(SEND_ERROR "Your version of cmake does not set CUDA ARCHITECTURES automatically. Pass it with the -DCUDA_ARCH flag.")
+  else()
+    set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH})
+  endif()
+endif()
 
 target_include_directories(${LIBRARY_NAME}
-                             PUBLIC . 
-                             ${CUQUANTUM_ROOT}/include
-                             ${CUTENSOR_ROOT}/include)
+                             PUBLIC .
+                             ${CUDA_TOOLKIT_ROOT}/include)
 
-find_library(CUTENSORNET_LIB cutensornet HINTS ${CUQUANTUM_ROOT}/lib)
-# First try to locate libcutensor.so.2
-# Find the primary cutensor library
-find_library(CUTENSOR_LIB cutensor HINTS ${CUTENSOR_ROOT}/lib/11)
-
-# Try to locate the versioned libcutensor.so.2, if available
-find_library(CUTENSOR_LIB2 libcutensor.so.2 HINTS ${CUTENSOR_ROOT}/lib/11)
-
-if(NOT CUTENSOR_LIB)
-    message(FATAL_ERROR "Could not find libcutensor")
-endif()
-
-if(NOT CUTENSOR_LIB2)
-    message(FATAL_ERROR "Could not find libcutensor2")
-endif()
+target_link_directories(${LIBRARY_NAME}
+                          PRIVATE
+                          ${CUTENSOR_LIB}
+                          ${CUDA_TOOLKIT_ROOT}/lib64)
 
 target_link_libraries(${LIBRARY_NAME}
-                        PUBLIC xacc
-                               xacc-quantum-gate
-          PRIVATE
-          ${CUTENSORNET_LIB}
-          ${CUTENSOR_LIB}
-          ${CUTENSOR_LIB2}
-          cudart)
+                        PUBLIC
+                        xacc
+                        xacc-quantum-gate
+                        PRIVATE
+                        cutensornet
+                        cudart)
 
 set(_bundle_name xacc_cutensornet)
 set_target_properties(${LIBRARY_NAME}

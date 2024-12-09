@@ -23,7 +23,7 @@ void CuTensorNetAccelerator::initialize(const HeterogeneousMap &params) {
   if (!cutnHandle) {
     HANDLE_CUTN_ERROR(cutensornetCreate(&cutnHandle));
   }
-  std::cout << "Initialized cuTensorNet library on GPU 0\n";
+  xacc::info("Initialized cuTensorNet library on GPU 0");
 
   if (params.keyExists<int>("bond-dimension")) {
     bondDimension = params.get<int>("bond-dimension");

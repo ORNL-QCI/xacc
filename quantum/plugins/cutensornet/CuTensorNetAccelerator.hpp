@@ -12,11 +12,8 @@
  *******************************************************************************/
 #pragma once
 #include "xacc.hpp"
-#include "CuTensorNetVisitor.hpp"
+#include "CuTensorNetHandles.hpp"
 #include "PauliOperator.hpp"
-
-#include <cuda_runtime.h>
-#include <cutensornet.h>
 
 namespace xacc {
 namespace quantum {

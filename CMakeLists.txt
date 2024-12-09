@@ -49,7 +49,7 @@ option(XACC_BUILD_ATOS "Build the Atos QLM plugin" OFF)
 option(XACC_BUILD_QFACTOR "Build the QFactor plugin" OFF)
 option(XACC_BUILD_QSEARCH "Build the QSearch plugin" OFF)
 option(XACC_BUILD_QRACK "Build the Qrack plugin" OFF)
-option(XACC_BUILD_MPS "Build the cuTensorNet plugin" OFF)
+option(XACC_BUILD_CUTENSORNET "Build the cuTensorNet plugin" OFF)
 
 
 if(XACC_BUILD_ANNEALING)
@@ -180,14 +180,14 @@ if(XACC_ENABLE_MPI)
   endif()
 endif()
 
-if(XACC_BUILD_MPS)
+if(XACC_BUILD_CUTENSORNET)
   enable_language(CUDA)
-  find_package(CUDA)
+  find_package(CUDAToolkit REQUIRED)
 
-  if(CUDA_FOUND)
-   message(STATUS "${Green}Found CUDA.${ColorReset}")
+  if(CUDAToolkit_FOUND)
+    message(STATUS "${Green}Found CUDA Toolkit.${ColorReset}")
   else()
-    message(STATUS "${BoldYellow}CUDA not found.${ColorReset}")
+    message(STATUS "${BoldYellow}CUDA Toolkit not found.${ColorReset}")
   endif()
 endif()
 
