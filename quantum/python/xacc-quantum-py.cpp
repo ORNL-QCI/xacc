@@ -185,6 +185,8 @@ void bind_quantum(py::module &m) {
       .def(py::self += py::self)
       .def(py::self *= py::self)
       .def(py::self *= double())
+      .def(py::self * double())
+      .def(double() * py::self)
       .def(py::self * py::self)
       .def(py::self *= std::complex<double>())
       .def(py::self -= py::self)
