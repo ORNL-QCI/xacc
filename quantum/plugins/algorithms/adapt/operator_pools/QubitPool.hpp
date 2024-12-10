@@ -98,8 +98,6 @@ std::vector<std::vector<char>> generate_permutations(const std::vector<char>& pa
     // {X, Y, X} for each qubit and make sure that we have the appropriate 
     // number of Y's and only add unique operators, i.e., those which 
     // survive symmetry operations in the PauliOperator class.
-
-    std::cout << "Pauli strings of the form Xa Yb and permutations:\n";
     std::vector<std::string> ops;
     for (const auto& [a, b] : generate_two_index_combinations(nQubits)) {
         std::vector<char> base_pattern = {'X', 'Y'};
@@ -112,7 +110,6 @@ std::vector<std::vector<char>> generate_permutations(const std::vector<char>& pa
     }
 
     // Case 2: Xa Xb Xc Yd and permutations (XXXY and all permutations)
-    std::cout << "\nPauli strings of the form Xa Xb Xc Yd and permutations:\n";
     for (const auto& [a, b, c, d] : generate_four_index_combinations(nQubits)) {
         std::vector<char> base_pattern = {'X', 'X', 'X', 'Y'};
         auto permutations = generate_permutations(base_pattern);
@@ -123,8 +120,7 @@ std::vector<std::vector<char>> generate_permutations(const std::vector<char>& pa
         }
     }
 
-    // Case 3: Xa Yb Yc Yd and permutations (XYXX and all permutations)
-    std::cout << "\nPauli strings of the form Xa Yb Yc Yd and permutations:\n";
+    // Case 3: Xa Yb Yc Yd and permutations (XYYY and all permutations)
     for (const auto& [a, b, c, d] : generate_four_index_combinations(nQubits)) {
         std::vector<char> base_pattern = {'X', 'Y', 'Y', 'Y'};
         auto permutations = generate_permutations(base_pattern);
@@ -139,7 +135,6 @@ std::vector<std::vector<char>> generate_permutations(const std::vector<char>& pa
     for (auto op : ops) {
       pool.push_back(std::dynamic_pointer_cast<Observable>(std::make_shared<PauliOperator>("(0, 1)" + op)));
     }
-   // exit(0);
     return pool;
   }
 
