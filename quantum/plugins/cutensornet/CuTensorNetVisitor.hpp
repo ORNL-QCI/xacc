@@ -15,7 +15,7 @@
 #include <complex>
 #include <vector>
 #include <cmath>
-#include "CuTensorNetHandles.hpp"
+#include "CuTensorNetHelper.hpp"
 
 using namespace xacc;
 using namespace xacc::quantum;

@@ -12,7 +12,7 @@
  *******************************************************************************/
 #pragma once
 #include "xacc.hpp"
-#include "CuTensorNetHandles.hpp"
+#include "CuTensorNetHelper.hpp"
 #include "PauliOperator.hpp"
 
 namespace xacc {

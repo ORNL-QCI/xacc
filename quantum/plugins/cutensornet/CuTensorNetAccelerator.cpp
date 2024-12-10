@@ -10,6 +10,7 @@
  * Contributors:
  *   Daniel Claudino - initial API and implementation
  *******************************************************************************/
+#include "CuTensorNetVisitor.hpp"
 #include "CuTensorNetAccelerator.hpp"
 #include "xacc_plugin.hpp"
 #include "IRUtils.hpp"
