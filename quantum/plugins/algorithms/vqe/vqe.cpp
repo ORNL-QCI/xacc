@@ -342,6 +342,10 @@ VQE::execute(const std::shared_ptr<AcceleratorBuffer> buffer,
   // circuits
   if (cacheMeasurements) {
 
+    if (basisRotations.empty()) {
+      basisRotations = observable->getMeasurementBasisRotations();
+    }
+
     nInstructionsEnergy = basisRotations.size() - 1;
     for (auto it = basisRotations.begin(); it != basisRotations.end();) {
 
@@ -387,6 +391,7 @@ VQE::execute(const std::shared_ptr<AcceleratorBuffer> buffer,
   } else {
     accelerator->execute(tmpBuffer, fsToExec);
   }
+
   auto buffers = tmpBuffer->getChildren();
   for (auto &b : buffers) {
     b->addExtraInfo("parameters", x);
