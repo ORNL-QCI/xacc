@@ -75,32 +75,7 @@ public:
 
   void initialize(const HeterogeneousMap &params = {}) override;
 
-  void updateConfiguration(const HeterogeneousMap &config) override {
-
-    if (config.keyExists<int>("shots")) {
-      shots = config.get<int>("shots");
-    }
-    if (config.stringExists("backend")) {
-      backend = config.getString("backend");
-    }
-    if (config.keyExists<int>("n-qubits")) {
-      requested_n_qubits = config.get<int>("n-qubits");
-    }
-    if (config.keyExists<bool>("check-jobs-limit")) {
-      filterByJobsLimit = config.get<bool>("check-jobs-limit");
-    }
-    if (config.keyExists<bool>("http-verbose")) {
-      restClient->setVerbose(config.get<bool>("http-verbose"));
-    }
-    // Specify a mode: "qasm" or "pulse"
-    if (config.stringExists("mode")) {
-      mode = config.getString("mode");
-    }
-
-    if (config.keyExists<bool>("cloud-transpiler")) {
-      useCloudTranspiler = config.get<bool>("cloud-transpiler");
-    }
-  }
+  void updateConfiguration(const HeterogeneousMap &config) override;
 
   const std::vector<std::string> configurationKeys() override {
     return {"shots", "backend", "n-qubits", "check-jobs-limit", "http-verbose", "mode"};
@@ -182,6 +157,7 @@ private:
   std::string group;
   std::string project;
   std::string backend;
+  std::string primitiveId = "sampler";
 
   int shots = 1024;
   int backendQueueLength = -1; 
