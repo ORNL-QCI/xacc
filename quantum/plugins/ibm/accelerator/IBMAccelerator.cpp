@@ -129,27 +129,29 @@ void IBMAccelerator::selectBackend(std::vector<std::string>& all_available_backe
 
   for (std::string b : backends_root["devices"]) {
 
-      const std::string path("/runtime/backends/" + b + "/status");
-      auto backend_json = json::parse(get(IBM_API_URL, path, headers, {{"name", b}}));
-  
     // Simple case: select by backend_name
     if (!lowest_queue_backend) {
 
       if (b == backend) {
 
-        if(caseInsensitiveCompare(backend_json["status"].get<std::string>(), "active")) {
-          //availableBackends.insert(std::make_pair(backend, backend_json));
+        const std::string path("/runtime/backends/" + b + "/status");
+        auto backend_status_json =
+            json::parse(get(IBM_API_URL, path, headers, {{"name", b}}));
+        if (caseInsensitiveCompare(
+                backend_status_json["status"].get<std::string>(), "active")) {
           availableBackends.push_back(b);
         } else {
           xacc::error(backend + "not active at the moment.");
         }
       }
     } else {
+      const std::string path("/runtime/backends/" + b + "/configuration");
+      auto backend_json =
+          json::parse(get(IBM_API_URL, path, headers, {{"name", b}}));
       // Select backend by job queue size and by parameters (optional)
       processBackendCandidate(backend_json);
     }
     all_available_backends.push_back(b);
-    
   }
   if (lowest_queue_backend) {
     xacc::info("Backend with lowest queue count: " + backend);
