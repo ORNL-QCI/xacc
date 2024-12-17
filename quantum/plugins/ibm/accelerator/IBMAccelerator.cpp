@@ -158,6 +158,39 @@ void IBMAccelerator::selectBackend(std::vector<std::string>& all_available_backe
   }
 }
 
+void IBMAccelerator::updateConfiguration(const HeterogeneousMap &config) {
+
+  if (config.keyExists<int>("shots")) {
+    shots = config.get<int>("shots");
+  }
+  if (config.stringExists("backend")) {
+    backend = config.getString("backend");
+  }
+  if (config.keyExists<int>("n-qubits")) {
+    requested_n_qubits = config.get<int>("n-qubits");
+  }
+  if (config.keyExists<bool>("check-jobs-limit")) {
+    filterByJobsLimit = config.get<bool>("check-jobs-limit");
+  }
+  if (config.keyExists<bool>("http-verbose")) {
+    restClient->setVerbose(config.get<bool>("http-verbose"));
+  }
+  // Specify a mode: "qasm" or "pulse"
+  if (config.stringExists("mode")) {
+    mode = config.getString("mode");
+  }
+
+  if (config.keyExists<bool>("cloud-transpiler")) {
+    useCloudTranspiler = config.get<bool>("cloud-transpiler");
+  }
+
+  if (config.stringExists("primitive")) {
+    primitiveId = config.getString("primitive");
+    if (primitiveId != "sampler" && primitiveId != "estimator") {
+      xacc::error("Primitive can only be sampler or estimator.");
+    }
+  }
+}
 
 void IBMAccelerator::initialize(const HeterogeneousMap &params) {
   if (!initialized) {
@@ -308,20 +341,17 @@ void IBMAccelerator::execute(
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-auto transpiled = json::parse(get(IBM_TRANSPILER_URL, "/transpile/" + task_id, headers));
+  auto transpiled = json::parse(get(IBM_TRANSPILER_URL, "/transpile/" + task_id, headers));
 
-    nlohmann::json body = {
-        {"program_id", "sampler"},
-        {"hub", hub},
-        {"group", group},
-        {"project", project},
-        {"backend", backend},
-        {"params", {
-            {"pubs", json::array()},
-            {"support_qiskit", false},
-            {"version", 2}
-        }}
-    };
+  json body;
+  body["program_id"] = primitiveId;
+  body["hub"] = hub;
+  body["group"] = group;
+  body["project"] = project;
+  body["backend"] = backend;
+  body["params"]["pubs"] = json::array();
+  body["params"]["support_qiskit"] = false;
+  body["params"]["version"] = 2;
 
   for (const auto & c : transpiled["result"]) {
     body["params"]["pubs"].push_back(
