@@ -190,6 +190,22 @@ void IBMAccelerator::updateConfiguration(const HeterogeneousMap &config) {
       xacc::error("Primitive can only be sampler or estimator.");
     }
   }
+
+  if (config.stringExists("dynamical-decoupling-type")) {
+    ddType = config.getString("dynamical-decoupling-type");
+    if(!xacc::container::contains(DDTYPES, ddType)) {
+      xacc::error("Chosen dynamical decoupling type invalid. Valid sequences are XX, XpXm, and XY4");
+    }
+    enableDD = true;
+  } else if (config.keyExists<bool>("dynamical-decoupling")) {
+    enableDD = config.get<bool>("dynamical-decoupling");
+    if (enableDD) {
+      xacc::warning(
+          "Using dynamical decoupling default XX. You can change it by passing "
+          "the \"dynamical-decoupling-type\" key with arguments XX, XpXm, XY4");
+      ddType = "XX";
+    }
+  }
 }
 
 void IBMAccelerator::initialize(const HeterogeneousMap &params) {
@@ -349,9 +365,17 @@ void IBMAccelerator::execute(
   body["group"] = group;
   body["project"] = project;
   body["backend"] = backend;
+
+  // Initialize the `params` section
   body["params"]["pubs"] = json::array();
   body["params"]["support_qiskit"] = false;
   body["params"]["version"] = 2;
+
+  // Add the nested `options` object
+  if (enableDD) {
+    body["params"]["options"]["dynamical_decoupling"]["enable"] = enableDD;
+    body["params"]["options"]["dynamical_decoupling"]["sequence_type"] = ddType;
+  }
 
   for (const auto & c : transpiled["result"]) {
     body["params"]["pubs"].push_back(
