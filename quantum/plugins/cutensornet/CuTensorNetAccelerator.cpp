@@ -15,6 +15,9 @@
 #include "xacc_plugin.hpp"
 #include "IRUtils.hpp"
 
+std::map<std::string, std::string> rotationGates{
+    {"Measure", "Z"}, {"H", "X"}, {"Rx", "Y"}};
+
 namespace xacc {
 namespace quantum {
 
@@ -274,18 +277,13 @@ void CuTensorNetAccelerator::execute(
     const std::shared_ptr<CompositeInstruction> baseCircuit,
     const std::vector<std::shared_ptr<CompositeInstruction>> basisRotations) {
 
-  std::map<std::string, std::string> rotationGates{
-      {"Measure", "Z"}, {"H", "X"}, {"Rx", "Y"}};
-
   for (auto &c : basisRotations) {
 
-    std::string bufferName;
     std::map<int, std::string> ops;
     InstructionIterator it(c);
     while (it.hasNext()) {
       auto nextInst = it.next();
       if (!dynamic_cast<xacc::quantum::Gate *>(nextInst.get())) {
-        bufferName = nextInst->name();
         continue;
       }
       int bit = nextInst->bits()[0];
@@ -303,7 +301,7 @@ void CuTensorNetAccelerator::execute(
     auto tmpBuffer = qalloc(buffer->size());
     execute(tmpBuffer, baseCircuit);
     tmpBuffer->setName(c->name());
-    buffer->appendChild(bufferName, tmpBuffer);
+    buffer->appendChild(c->name(), tmpBuffer);
   }
 
   return;
