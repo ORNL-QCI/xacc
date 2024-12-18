@@ -157,7 +157,12 @@ private:
   std::string group;
   std::string project;
   std::string backend;
+
+
   std::string primitiveId = "sampler";
+  std::string ddType;
+  std::vector<std::string> DDTYPES{"XX", "XpXm", "XY4"};
+  bool enableDD = false;
 
   int shots = 1024;
   int backendQueueLength = -1; 
