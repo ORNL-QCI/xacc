@@ -20,8 +20,7 @@ using namespace cxxopts;
 namespace xacc {
 // class ServiceRegistry;
 bool serviceAPIInitialized = false;
-std::shared_ptr<ServiceRegistry> serviceRegistry =
-    std::make_shared<ServiceRegistry>();
+std::unique_ptr<ServiceRegistry> serviceRegistry;
 
 void addPluginSearchPath(const std::string path) {
     serviceRegistry->appendSearchPath(path);
@@ -44,6 +43,7 @@ void ServiceAPI_Initialize(int argc, char **argv) {
       rootPath = vm["xacc-root-path"].as<std::string>();
     }
 
+    serviceRegistry = std::make_unique<ServiceRegistry>();
     try {
       serviceRegistry->initialize(rootPath);
     } catch (std::exception &e) {
@@ -60,6 +60,7 @@ void ServiceAPI_Finalize() {
     if (serviceAPIInitialized) {
         serviceAPIInitialized = false;
         serviceRegistry->finalize();
+        serviceRegistry.release();
     }
 }
 

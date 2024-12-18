@@ -18,7 +18,7 @@
 
 namespace xacc {
 
-extern std::shared_ptr<ServiceRegistry> serviceRegistry;
+extern std::unique_ptr<ServiceRegistry> serviceRegistry;
 extern bool serviceAPIInitialized;
 
 void ServiceAPI_Initialize(int argc, char **argv);
