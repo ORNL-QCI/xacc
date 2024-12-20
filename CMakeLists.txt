@@ -68,7 +68,7 @@ endif()
 option(XACC_REMOTE_ACCELERATORS "Build remove (cloud) accelerators" ON)
 if(NOT XACC_REMOTE_ACCELERATORS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DREMOTE_DISABLED")
-  message(STATUS "${BoldYellow}Skipping remote accelerators. Only local simulators are now enabled.{ColorReset}")
+  message(STATUS "${BoldYellow}Skipping remote accelerators. Only local simulators are now enabled.${ColorReset}")
 endif()
 
 if(FROM_SETUP_PY AND NOT APPLE)
